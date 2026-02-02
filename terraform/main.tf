@@ -92,6 +92,7 @@ resource "google_pubsub_subscription" "bq_subscription" {
   bigquery_config {
     table = "${data.google_project.project.project_id}.${google_bigquery_dataset.openaq_dataset.dataset_id}.${google_bigquery_table.air_quality_table.table_id}"
     
+    use_table_schema = true
     use_topic_schema = false 
     write_metadata   = false
   }
