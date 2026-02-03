@@ -42,22 +42,16 @@ output "bigquery_dataset_id" {
   value = google_bigquery_dataset.openaq_dataset.dataset_id
 }
 
-resource "google_bigquery_table" "air_quality_table" {
+resource "google_bigquery_table" "measurements_fact" {
   dataset_id = google_bigquery_dataset.openaq_dataset.dataset_id
-  table_id   = "measurements_raw"
+  table_id   = "measurements_fact"
 
   schema = <<EOF
 [
-  {"name": "location_id", "type": "INTEGER", "mode": "NULLABLE"},
-  {"name": "location", "type": "STRING", "mode": "NULLABLE"},
-  {"name": "city", "type": "STRING", "mode": "NULLABLE"},
-  {"name": "country", "type": "STRING", "mode": "NULLABLE"},
-  {"name": "parameter", "type": "STRING", "mode": "NULLABLE"},
-  {"name": "value", "type": "FLOAT", "mode": "NULLABLE"},
-  {"name": "unit", "type": "STRING", "mode": "NULLABLE"},
-  {"name": "timestamp", "type": "TIMESTAMP", "mode": "REQUIRED"},
-  {"name": "latitude", "type": "FLOAT", "mode": "NULLABLE"},
-  {"name": "longitude", "type": "FLOAT", "mode": "NULLABLE"}
+  {"name": "location_id", "type": "INTEGER", "mode": "REQUIRED"},
+  {"name": "parameter_id", "type": "INTEGER", "mode": "REQUIRED"},
+  {"name": "value", "type": "FLOAT", "mode": "REQUIRED"},
+  {"name": "timestamp", "type": "TIMESTAMP", "mode": "REQUIRED"}
 ]
 EOF
 
@@ -66,7 +60,22 @@ EOF
     field = "timestamp"
   }
 
-  clustering = ["country", "city"]
+  clustering = ["parameter_id", "location_id"]
+}
+
+resource "google_bigquery_table" "locations_dim" {
+  dataset_id = google_bigquery_dataset.openaq_dataset.dataset_id
+  table_id   = "locations_dim"
+
+  schema = <<EOF
+[
+  {"name": "location_id", "type": "INTEGER", "mode": "REQUIRED"},
+  {"name": "country_code", "type": "STRING", "mode": "NULLABLE"},
+  {"name": "latitude", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "longitude", "type": "FLOAT", "mode": "NULLABLE"},
+  {"name": "last_seen", "type": "TIMESTAMP", "mode": "NULLABLE"}
+]
+EOF
 }
 
 #  Pub/Sub
@@ -90,11 +99,13 @@ resource "google_pubsub_subscription" "bq_subscription" {
   topic = google_pubsub_topic.openaq_topic.name
 
   bigquery_config {
-    table = "${data.google_project.project.project_id}.${google_bigquery_dataset.openaq_dataset.dataset_id}.${google_bigquery_table.air_quality_table.table_id}"
+    table = "${data.google_project.project.project_id}.${google_bigquery_dataset.openaq_dataset.dataset_id}.${google_bigquery_table.measurements_fact.table_id}"
     
-    use_table_schema = true
+    use_table_schema = true 
     use_topic_schema = false 
     write_metadata   = false
+    
+    drop_unknown_fields = true
   }
 
   depends_on = [google_project_iam_member.pubsub_bq_writer]

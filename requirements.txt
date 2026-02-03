@@ -1,4 +1,5 @@
 Python==3.9
 google-cloud-pubsub 
+google-cloud-bigquery
 requests
 python-dotenv
