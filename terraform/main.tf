@@ -110,3 +110,48 @@ resource "google_pubsub_subscription" "bq_subscription" {
 
   depends_on = [google_project_iam_member.pubsub_bq_writer]
 }
+
+resource "google_cloud_scheduler_job" "sync_job" {
+  name        = "openaq-sync-10min"
+  description = "Запуск синхронизации каждые 20 минут"
+  schedule    = "*/20 * * * *"
+  time_zone   = "UTC"
+
+  pubsub_target {
+    topic_name = google_pubsub_topic.openaq_topic.id
+    data       = base64encode("{\"action\": \"fetch_data\"}")
+  }
+}
+
+resource "google_bigquery_table" "v_measurements_2026" {
+  dataset_id = google_bigquery_dataset.openaq_dataset.dataset_id
+  table_id   = "v_measurements_2026"
+  
+  deletion_protection = false
+
+  view {
+    query = <<EOF
+      SELECT DISTINCT 
+          f.location_id, 
+          f.parameter_id, 
+          f.value, 
+          f.timestamp,
+          d.latitude,
+          d.longitude,
+          d.country_code
+      FROM 
+          `${data.google_project.project.project_id}.${google_bigquery_dataset.openaq_dataset.dataset_id}.${google_bigquery_table.measurements_fact.table_id}` AS f
+      INNER JOIN 
+          `${data.google_project.project.project_id}.${google_bigquery_dataset.openaq_dataset.dataset_id}.${google_bigquery_table.locations_dim.table_id}` AS d
+          ON f.location_id = d.location_id
+      WHERE 
+          EXTRACT(YEAR FROM f.timestamp) = 2026
+    EOF
+    use_legacy_sql = false
+  }
+
+  depends_on = [
+    google_bigquery_table.measurements_fact,
+    google_bigquery_table.locations_dim
+  ]
+}
