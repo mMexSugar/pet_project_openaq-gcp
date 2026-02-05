@@ -2,6 +2,9 @@ import os
 import time
 import requests
 from google.cloud import bigquery
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
+from google.cloud import bigquery
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +15,19 @@ CREDENTIALS_PATH = os.path.join("terraform", "keys.json")
 OPENAQ_API_KEY = os.getenv("OPENAQ_API_KEY")
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CREDENTIALS_PATH
+
+geolocator = Nominatim(user_agent="openaq_pet_project_v3")
+
+def get_city_name(lat, lon):
+    """Обратное геокодирование для получения города"""
+    try:
+        location = geolocator.reverse((lat, lon), language='en', timeout=10)
+        if location and 'address' in location.raw:
+            address = location.raw['address']
+            return address.get('city') or address.get('town') or address.get('village') or address.get('suburb')
+    except Exception as e:
+        print(f"Ошибка геокодинга для {lat},{lon}: {e}")
+    return None
 
 def sync_locations():
     client = bigquery.Client(project=PROJECT_ID)
@@ -39,11 +55,23 @@ def sync_locations():
                 break
             
             for loc in results:
+
+                lat = loc.get('coordinates', {}).get('latitude')
+                lon = loc.get('coordinates', {}).get('longitude')
+                
+                city = loc.get('locality')
+                if not city and lat and lon:
+                    # Включаем геокодер только если город не пришел от OpenAQ
+                    # ВНИМАНИЕ: это замедлит работу. Уберите if, если хотите перепроверить всех.
+                    city = get_city_name(lat, lon)
+                    time.sleep(1)
+
                 rows_to_insert.append({
                     "location_id": loc.get('id'),
                     "country_code": loc.get('country', {}).get('code'),
-                    "latitude": loc.get('coordinates', {}).get('latitude'),
-                    "longitude": loc.get('coordinates', {}).get('longitude'),
+                    "city_name": city,
+                    "latitude": lat,
+                    "longitude": lon,
                     "last_seen": loc.get('datetimeLast', {}).get('utc') if loc.get('datetimeLast') else None
                 })
             

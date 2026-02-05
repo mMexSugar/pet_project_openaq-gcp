@@ -1,4 +1,4 @@
-# --- 1. Потоковая передача (Pub/Sub) ---
+# --- Pub/Sub ---
 
 resource "google_pubsub_topic" "openaq_topic" {
   name = "openaq-data-topic"
@@ -31,7 +31,7 @@ resource "google_pubsub_subscription" "bq_subscription" {
   depends_on = [google_project_iam_member.pubsub_bq_writer]
 }
 
-# --- 2. Вычислительные ресурсы (Functions & Storage) ---
+# --- Functions & Storage ---
 
 data "archive_file" "incremental_sync_zip" {
   type        = "zip"
@@ -79,7 +79,7 @@ resource "google_cloudfunctions2_function" "incremental_sync_fn" {
   }
 }
 
-# --- 3. Автоматизация (Scheduler) ---
+# --- Scheduler ---
 
 resource "google_cloud_scheduler_job" "incremental_sync_job" {
   name             = "trigger-incremental-sync"
@@ -97,7 +97,7 @@ resource "google_cloud_scheduler_job" "incremental_sync_job" {
   }
 }
 
-# --- 4. Безопасность (IAM) ---
+# --- (IAM) ---
 
 resource "google_service_account" "function_sa" {
   account_id   = "openaq-fn-sa"
@@ -115,4 +115,11 @@ resource "google_cloudfunctions2_function_iam_member" "invoker" {
   cloud_function = google_cloudfunctions2_function.incremental_sync_fn.name
   role           = "roles/cloudfunctions.invoker"
   member         = "serviceAccount:${google_service_account.function_sa.email}"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "cloud_run_invoker" {
+  name     = google_cloudfunctions2_function.incremental_sync_fn.name
+  location = google_cloudfunctions2_function.incremental_sync_fn.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.function_sa.email}"
 }
