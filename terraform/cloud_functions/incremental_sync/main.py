@@ -16,7 +16,7 @@ def fetch_incremental_data(request):
     Принимает запрос от Cloud Scheduler и собирает дельту данных.
     """
     api_key = os.environ.get("OPENAQ_API_KEY")
-    params = [2, 1, 11, 6] # PM2.5, PM10, NO2, O3
+    params = [2, 1, 11, 6, 7, 8, 3]
     headers = {"X-API-Key": api_key}
     total_sent = 0
 

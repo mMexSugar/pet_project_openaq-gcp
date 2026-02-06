@@ -17,7 +17,10 @@ PARAMETERS = {
     2: "PM2.5",
     1: "PM10",
     11: "NO2",
-    6: "O3"
+    6: "O3",
+    7:  "SO2",
+    8:  "CO",   
+    3:  "BC"
 }
 
 publisher = pubsub_v1.PublisherClient.from_service_account_json(CREDENTIALS_PATH)
