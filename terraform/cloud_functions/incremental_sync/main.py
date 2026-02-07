@@ -21,7 +21,7 @@ def fetch_incremental_data(request):
     total_sent = 0
 
     for p_id in params:
-        url = f"https://api.openaq.org/v3/parameters/{p_id}/latest?limit=20"
+        url = f"https://api.openaq.org/v3/parameters/{p_id}/latest?limit=700"
         
         try:
             response = requests.get(url, headers=headers, timeout=10)

@@ -1,64 +1,78 @@
 🌍 OpenAQ Global Air Quality Pipeline
-Проект по созданию автоматизированного конвейера данных (Data Pipeline) для сбора, хранения и анализа качества воздуха во всем мире с использованием OpenAQ API v3 и облачной инфраструктуры Google Cloud Platform (GCP).
+An automated end-to-end data pipeline designed to collect, store, and analyze global air quality data using the OpenAQ API v3 and Google Cloud Platform (GCP) infrastructure.
 
-🏗 Архитектура системы
-Проект реализован по принципу DWH Star Schema (Схема «Звезда»), что обеспечивает высокую производительность аналитических запросов и эффективное хранение истории.
+🏗 System Architecture
+The project follows the DWH Star Schema principle, ensuring high performance for analytical queries and efficient historical data storage.
 
-Ingestion: Python-скрипты (Initial Load) и Cloud Functions (Incremental Sync).
+Ingestion: Hybrid approach using Python scripts for Initial Load and Cloud Functions (Gen2) for Incremental Sync.
 
-Transport: Google Cloud Pub/Sub для потоковой передачи данных в реальном времени.
+Transport: Google Cloud Pub/Sub for real-time, asynchronous data streaming.
 
-Storage: Google BigQuery (Хранилище данных).
+Storage: Google BigQuery (Data Warehouse):
 
-measurements_fact: Таблица фактов, партиционированная по дням.
+measurements_fact: Fact table partitioned by day for cost-optimization.
 
-locations_dim: Таблица измерений с метаданными станций (координаты, страны).
+locations_dim: Dimension table containing station metadata (coordinates, country, and reverse-geocoded city names).
 
-Transformation: BigQuery View (v_measurements_2026) для автоматической дедупликации и фильтрации данных за 2026 год.
+parameters_dim: Dimension table for pollutants (PM2.5, CO, NO₂, etc.) and their units.
 
-Orchestration: Cloud Scheduler для запуска обновлений каждые 10 минут.
+Transformation: BigQuery Views (v_latest_measurements & v_history_measurements) utilizing ROW_NUMBER() for automated deduplication and real-time filtering.
 
-IaC: Вся инфраструктура развернута через Terraform.
+Orchestration: Cloud Scheduler triggering synchronization every 10 minutes.
 
-🛠 Технологический стек
-Language: Python 3.11 (Requests, Google Cloud SDK).
+IaC: Entire infrastructure defined and deployed via Terraform.
 
-Infrastructure: Terraform.
+🛠 Tech Stack
+Infrastructure: Terraform (Infrastructure as Code)
 
-Cloud (GCP): BigQuery, Pub/Sub, Cloud Functions (v2), Cloud Scheduler, Cloud Storage.
+Cloud (GCP): BigQuery, Pub/Sub, Cloud Functions Gen2, Cloud Scheduler, Cloud Storage
 
-🚀 Быстрый запуск
-1. Предварительные требования
-Установленный Terraform.
+Data Processing: Python 3.11, Geopy (Reverse Geocoding)
 
-Аккаунт в Google Cloud с активным проектом.
+Analytics: Looker Studio
 
-API ключ от OpenAQ.
+🚀 Quick Start
+1. Prerequisites
+Terraform installed.
 
-2. Настройка инфраструктуры
-Клонируйте репозиторий.
+A Google Cloud Project with billing enabled.
 
-Разместите ваш сервисный ключ GCP в terraform/keys.json.
+An API Key from OpenAQ.
 
-Создайте файл terraform/terraform.tfvars:
+GCP Service Account credentials saved as terraform/keys.json.
+
+2. Infrastructure Setup
+Clone the repository.
+
+Create a terraform/terraform.tfvars file:
 
 Terraform
-openaq_api_key = "ваш_ключ"
-Выполните развертывание:
+openaq_api_key = "YOUR_OPENAQ_API_KEY"
+Deploy the infrastructure:
 
 Bash
 cd terraform
 terraform init
 terraform apply
-3. Первичное наполнение данными
-Для того чтобы система начала работать "с нуля", выполните разовые скрипты:
+3. Data Population
+To initialize the system, run the following scripts in order:
 
-Синхронизация локаций (пагинация):
+Sync Locations (with Reverse Geocoding):
 
 Bash
 python src/sync_locations.py
-Загрузка исторического среза:
+Populate Parameters Dictionary: Execute the SQL script located in sql/setup_parameters.sql within the BigQuery console.
+
+Initial Fact Load:
 
 Bash
 python src/initial_load_facts.py
-📊 Аналитика
+📊 Analytics & Visualization
+The data is visualized through a Looker Studio Dashboard connected directly to BigQuery:
+
+Live Map: A bubble map with color-coded indicators representing real-time pollution levels across the globe.
+
+Time-Series Analysis: 7 independent interactive charts tracking the dynamics of CO, NO₂, PM2.5, and other pollutants over the last 28 days.
+
+![Dashboard](images/dashboard1.png)
+![Architecture](images/architecture.png)    
